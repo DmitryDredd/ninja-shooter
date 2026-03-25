@@ -1,5 +1,16 @@
 // Автоматическое подключение к текущему серверу через безопасный протокол (WSS)
 const socket = io(); 
+socket.on('connect', () => {
+    console.log("✅ СОЕДИНЕНИЕ УСТАНОВЛЕНО! Мой ID:", socket.id);
+    const statusBox = document.getElementById('status');
+    if (statusBox) statusBox.innerText = "Ниндзя в сети";
+});
+
+socket.on('connect_error', (err) => {
+    console.error("❌ ОШИБКА СОЕДИНЕНИЯ:", err.message);
+    const statusBox = document.getElementById('status');
+    if (statusBox) statusBox.innerText = "Ошибка сети: " + err.message;
+});
 
 // Остальные твои переменные
 let scene, camera, renderer;
