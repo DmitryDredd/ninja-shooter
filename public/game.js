@@ -166,7 +166,6 @@ function onPointerLockChange() {
 }
 
 let yaw = 0, pitch = 0;
-let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 
 function onMouseMove(event) {
     if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
