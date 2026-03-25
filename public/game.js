@@ -1,6 +1,7 @@
-const SOCKET_SERVER_URL = "http://your-node-server-url:3000"; // Замените на ваш URL сервера
-const socket = io(SOCKET_SERVER_URL);
+// Автоматическое подключение к текущему серверу через безопасный протокол (WSS)
+const socket = io(); 
 
+// Остальные твои переменные
 let scene, camera, renderer;
 let playerMeshes = {};
 let myPlayerId;
@@ -9,6 +10,7 @@ let chatInput = document.getElementById('messageInput');
 let messagesList = document.getElementById('messages');
 let isPointerLocked = false;
 let weaponModel;
+
 
 function init() {
     // 1. Создаем сцену и темный фон (в стиле твоего менеджера)
