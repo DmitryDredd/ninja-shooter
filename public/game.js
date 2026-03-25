@@ -210,22 +210,30 @@ init();
 setInterval(sendPlayerMove, 50);
 
 // Звук выстрела
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-const shootSound = document.createElement('audio');
-shootSound.src = 'path/to/shoot-sound.mp3'; // Укажите путь к звуку выстрела
+// Звук выстрела (оставляем только одну строку)
+const shootSound = new Audio('usp1.wav'); 
 
 document.addEventListener('click', () => {
-    if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
+    // Шаг 1: Входим в игру
+    if (!isPointerLocked) {
+        document.body.requestPointerLock();
+        return; 
+    }
+
+    // Шаг 2: Стреляем
+    if (players[myPlayerId] && players[myPlayerId].health > 0) {
         const targetPosition = new THREE.Vector3(camera.position.x, camera.position.y, camera.position.z);
         targetPosition.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion));
+        
         socket.emit('shoot', { targetPosition });
 
-        // Проигрывание звука выстрела
-        const source = audioContext.createMediaElementSource(shootSound);
-        source.connect(audioContext.destination);
+        // Бабахаем из USP
+        shootSound.currentTime = 0; 
         shootSound.play();
     }
 });
+
+
 
 // Коллизии (простая проверка)
 function checkCollisions() {
@@ -388,18 +396,3 @@ function shootAnimation() {
     }
 }
 
-document.addEventListener('click', () => {
-    if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
-        const targetPosition = new THREE.Vector3(camera.position.x, camera.position.y, camera.position.z);
-        targetPosition.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion));
-        socket.emit('shoot', { targetPosition });
-
-        // Проигрывание звука выстрела
-        const source = audioContext.createMediaElementSource(shootSound);
-        source.connect(audioContext.destination);
-        shootSound.play();
-
-        // Анимация отдачи
-        shootAnimation();
-    }
-});
