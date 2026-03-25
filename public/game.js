@@ -8,6 +8,7 @@ let healthDisplay = document.getElementById('health');
 let chatInput = document.getElementById('messageInput');
 let messagesList = document.getElementById('messages');
 let isPointerLocked = false;
+let weaponModel;
 
 function init() {
     // 1. Создаем сцену и темный фон (в стиле твоего менеджера)
@@ -417,23 +418,36 @@ players[playerId].position.z);
     }
 });
 
-// Модель оружия
-const weaponLoader = new THREE.GLTFLoader();
+
+
 
 function loadWeaponModel() {
-    weaponLoader.load('path/to/weapon-model.glb', (gltf) => { // Укажите путь к модели оружия
-        const model = gltf.scene;
-        model.scale.set(0.1, 0.1, 0.1);
-        model.position.set(0, -0.5, -2);
-        camera.add(model);
-
-        weaponModel = model;
+    // 1. Создаем загрузчик
+    const weaponLoader = new THREE.GLTFLoader();
+    
+    // 2. Пытаемся загрузить твой будущий Калаш
+    weaponLoader.load('weapon.glb', (gltf) => { 
+        weaponModel = gltf.scene;
+        weaponModel.scale.set(0.1, 0.1, 0.1); // Размер
+        weaponModel.position.set(0.4, -0.5, -1.2); // Позиция в руках
+        camera.add(weaponModel);
+        console.log("🔥 КАЛАШ ИЗ КОНТРЫ ЗАГРУЖЕН!");
+    }, undefined, (error) => {
+        // --- ЭТО ЗАГЛУШКА (Если файла weapon.glb еще нет на GitHub) ---
+        console.warn("Модель weapon.glb не найдена. Создаю временный клинок!");
+        
+        // Создаем длинный неоновый зеленый куб (как меч)
+        const geo = new THREE.BoxGeometry(0.05, 0.1, 1.5);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+        weaponModel = new THREE.Mesh(geo, mat);
+        
+        // Ставим его "в руки" справа снизу
+        weaponModel.position.set(0.5, -0.5, -1.2);
+        camera.add(weaponModel);
     });
 }
 
-let weaponModel;
 
-loadWeaponModel();
 
 function shootAnimation() {
     if (weaponModel) {
