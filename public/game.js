@@ -21,7 +21,8 @@ let chatInput = document.getElementById('messageInput');
 let messagesList = document.getElementById('messages');
 let isPointerLocked = false;
 let weaponModel;
-
+let players = {};
+let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 
 function init() {
     // 1. Создаем сцену и темный фон (в стиле твоего менеджера)
@@ -138,40 +139,21 @@ function animate() {
 
 
 function handleKeyDown(event) {
-    if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
-        switch(event.key) {
-            case 'w':
-                moveForward = true;
-                break;
-            case 's':
-                moveBackward = true;
-                break;
-            case 'a':
-                moveLeft = true;
-                break;
-            case 'd':
-                moveRight = true;
-                break;
-        }
+    // Используем code вместо key, чтобы работало на любой раскладке (даже русской)
+    switch(event.code) {
+        case 'KeyW': moveForward = true; break;
+        case 'KeyS': moveBackward = true; break;
+        case 'KeyA': moveLeft = true; break;
+        case 'KeyD': moveRight = true; break;
     }
 }
 
 function handleKeyUp(event) {
-    if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
-        switch(event.key) {
-            case 'w':
-                moveForward = false;
-                break;
-            case 's':
-                moveBackward = false;
-                break;
-            case 'a':
-                moveLeft = false;
-                break;
-            case 'd':
-                moveRight = false;
-                break;
-        }
+    switch(event.code) {
+        case 'KeyW': moveForward = false; break;
+        case 'KeyS': moveBackward = false; break;
+        case 'KeyA': moveLeft = false; break;
+        case 'KeyD': moveRight = false; break;
     }
 }
 
