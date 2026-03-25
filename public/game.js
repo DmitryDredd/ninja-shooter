@@ -251,7 +251,7 @@ socket.on('chatMessage', (message) => {
     chatInput.focus();
 });
 
-init();
+
 
 // Ограничение частоты отправки данных
 setInterval(sendPlayerMove, 50);
@@ -456,3 +456,4 @@ function shootAnimation() {
     }
 }
 
+init();
