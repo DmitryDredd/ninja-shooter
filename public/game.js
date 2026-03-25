@@ -10,32 +10,52 @@ let messagesList = document.getElementById('messages');
 let isPointerLocked = false;
 
 function init() {
+    // 1. Создаем сцену и темный фон (в стиле твоего менеджера)
     scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020202); 
+
+    // 2. Камера: поднимаем на 1.6м и ставим правильный порядок вращения
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer();
+    camera.position.set(0, 1.6, 5); 
+    camera.rotation.order = 'YXZ'; // Критично для FPS!
+
+    // 3. Рендерер с антиалиасингом (чтобы не было "лесенок" на краях)
+    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Создание карты
+    // 4. СВЕТ: теперь мир станет объемным
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Общий мягкий свет
+    scene.add(ambientLight);
+
+    const ninjaLight = new THREE.PointLight(0x00ff88, 1, 100); // Зеленый неоновый свет
+    ninjaLight.position.set(5, 10, 5);
+    scene.add(ninjaLight);
+
+    // 5. СЕТКА ПОЛА: чтобы видеть скорость и направление движения
+    const grid = new THREE.GridHelper(100, 50, 0x00ff88, 0x222222);
+    scene.add(grid);
+
+    // 6. Создание карты (стен и препятствий)
     createMap();
 
-    camera.position.z = 5;
-
-    // Обработка нажатий клавиш
+    // 7. Обработка нажатий клавиш (W, A, S, D)
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
 
-    // Управление мышью
-    document.addEventListener('click', requestPointerLock);
+    // 8. Управление мышью (Pointer Lock уже внутри твоего общего клика)
     document.addEventListener('pointerlockchange', onPointerLockChange);
     document.addEventListener('mousemove', onMouseMove, false);
 
-    // Присоединение к команде
-    const team = prompt("Choose your team (red/blue):");
+    // 9. Присоединение к команде (через confirm, чтобы не мучить пользователя prompt)
+    const team = confirm("Вступить в КРАСНЫЙ ОТРЯД? (Отмена - СИНИЕ)") ? 'red' : 'blue';
     socket.emit('joinTeam', team);
 
+    // 10. Запуск анимации
+    loadWeaponModel();
     animate();
 }
+
 
 function createMap() {
     const planeGeometry = new THREE.PlaneGeometry(10, 10);
@@ -56,20 +76,52 @@ function createMap() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Обновление позиций игроков
-    for (const playerId in playerMeshes) {
-        if (playerId !== myPlayerId && players[playerId]) {
-            const targetPosition = new THREE.Vector3(players[playerId].position.x, players[playerId].position.y,
-players[playerId].position.z);
-            const targetRotation = new THREE.Quaternion().setFromEuler(new
-THREE.Euler(players[playerId].rotation.x, players[playerId].rotation.y, players[playerId].rotation.z));
-            playerMeshes[playerId].position.lerp(targetPosition, 0.1);
-            playerMeshes[playerId].quaternion.slerp(targetRotation, 0.1);
+    // 1. ЛОГИКА ТВОЕГО ДВИЖЕНИЯ (Добавлено!)
+    // Проверяем: заблокирована ли мышь и жив ли игрок
+    if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
+        const speed = 0.15; // Скорость передвижения
+        
+        // Двигаем камеру относительно того, куда она смотрит
+        if (moveForward) camera.translateZ(-speed);
+        if (moveBackward) camera.translateZ(speed);
+        if (moveLeft) camera.translateX(-speed);
+        if (moveRight) camera.translateX(speed);
+        
+        // ФИКС ВЫСОТЫ: удерживаем камеру на уровне глаз (1.6м), чтобы не "взлетать"
+        camera.position.y = 1.6;
+
+        // Отправляем свои координаты на сервер, чтобы другие нас видели
+        if (typeof sendPlayerMove === 'function') {
+            sendPlayerMove();
         }
     }
 
+    // 2. ОБНОВЛЕНИЕ ПОЗИЦИЙ ДРУГИХ ИГРОКОВ (Твой оригинальный код)
+    for (const playerId in playerMeshes) {
+        if (playerId !== myPlayerId && players[playerId]) {
+            const targetPosition = new THREE.Vector3(
+                players[playerId].position.x, 
+                players[playerId].position.y,
+                players[playerId].position.z
+            );
+            
+            // Плавное перемещение мешей других игроков (lerp)
+            playerMeshes[playerId].position.lerp(targetPosition, 0.1);
+
+            // Плавный поворот мешей других игроков (slerp)
+            if (players[playerId].rotation) {
+                const targetRotation = new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler(players[playerId].rotation.x, players[playerId].rotation.y, players[playerId].rotation.z)
+                );
+                playerMeshes[playerId].quaternion.slerp(targetRotation, 0.1);
+            }
+        }
+    }
+
+    // 3. Отрисовка сцены
     renderer.render(scene, camera);
 }
+
 
 function handleKeyDown(event) {
     if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
