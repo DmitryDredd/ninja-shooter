@@ -179,24 +179,22 @@ function animate() {
 
 
 function handleKeyDown(event) {
-	console.log(`[КЛАВИША НАЖАТА]: ${event.code} | В игре: ${isPointerLocked}`);
-    // Используем code вместо key, чтобы работало на любой раскладке (даже русской)
-    switch(event.code) {
-        case 'KeyW': moveForward = true; break;
-        case 'KeyS': moveBackward = true; break;
-        case 'KeyA': moveLeft = true; break;
-        case 'KeyD': moveRight = true; break;
-    }
+    // Этот лог покажет, ЧТО именно видит браузер
+    console.log("РЕАЛЬНЫЙ КОД КНОПКИ:", event.code); 
+
+    if (event.code === 'KeyW') moveForward = true;
+    if (event.code === 'KeyS') moveBackward = true;
+    if (event.code === 'KeyA') moveLeft = true;
+    if (event.code === 'KeyD') moveRight = true;
 }
 
 function handleKeyUp(event) {
-    switch(event.code) {
-        case 'KeyW': moveForward = false; break;
-        case 'KeyS': moveBackward = false; break;
-        case 'KeyA': moveLeft = false; break;
-        case 'KeyD': moveRight = false; break;
-    }
+    if (event.code === 'KeyW') moveForward = false;
+    if (event.code === 'KeyS') moveBackward = false;
+    if (event.code === 'KeyA') moveLeft = false;
+    if (event.code === 'KeyD') moveRight = false;
 }
+
 
 function requestPointerLock() {
     document.body.requestPointerLock();
@@ -528,33 +526,22 @@ players[playerId].position.z);
 function loadWeaponModel() {
     const weaponLoader = new THREE.GLTFLoader();
     
-    weaponLoader.load('ak47.glb', (gltf) => { 
-        weaponModel = gltf.scene;
+weaponLoader.load('ak47.glb', (gltf) => { 
+    weaponModel = gltf.scene;
 
-        weaponModel.scale.set(20, 20, 20); // Смело ставь 45, если модель из CS 1.6
-        weaponModel.position.set(0.6, -0.7, -1.2); // Позиция: справа, чуть ниже и ближе
+    // ЗОЛОТАЯ СЕРЕДИНА МАСШТАБА
+    weaponModel.scale.set(10, 10, 10); 
 
-        weaponModel.rotation.y = Math.PI; // Разворачиваем ствол от себя
-
-        camera.add(weaponModel);
-        
-        // 3. АНИМАЦИЯ (Затвор и отдача)
-        mixer = new THREE.AnimationMixer(weaponModel);
-        
-        // Ищем анимацию выстрела (в моделях CS она часто 'shoot' или 'fire')
-        const shootAnim = THREE.AnimationClip.findByName(gltf.animations, 'shoot') || gltf.animations[0];
-        if (shootAnim) {
-            window.shootAction = mixer.clipAction(shootAnim);
-            window.shootAction.setLoop(THREE.LoopOnce); 
-            window.shootAction.clampWhenFinished = true;
-        }
-
-        // 4. ДОБАВЛЯЕМ КАМЕРУ В СЦЕНУ (чтобы видеть пушку)
-        if (!scene.children.includes(camera)) scene.add(camera);
-
-        console.log("🔥 КАЛАШ С АНИМАЦИЕЙ ЗАГРУЖЕН!");
-
-    }, undefined, (error) => {
+    // ПОЗИЦИЯ (Прямо перед носом): 
+    // X: 0.5 (чуть правее), Y: -0.5 (чуть ниже), Z: -1.0 (вплотную)
+    weaponModel.position.set(0.5, -0.5, -1.0); 
+    
+    weaponModel.rotation.y = Math.PI; 
+    camera.add(weaponModel);
+    
+    // ГЛАВНЫЙ ФИКС: Если камера не в сцене, ты не увидишь пушку!
+    if (!scene.children.includes(camera)) scene.add(camera);
+});, undefined, (error) => {
         // --- ЗАГЛУШКА (если файла нет) ---
         console.warn("Файл ak47.glb не найден. Создаю временный неоновый клинок!");
         const geo = new THREE.BoxGeometry(0.1, 0.1, 1.5);
