@@ -1,7 +1,6 @@
 // Автоматическое подключение к текущему серверу через безопасный протокол (WSS)
 const socket = io(); 
-let mixer; 
-const clock = new THREE.Clock();
+
 socket.on('connect', () => {
     console.log("✅ СОЕДИНЕНИЕ УСТАНОВЛЕНО! Мой ID:", socket.id);
     const statusBox = document.getElementById('status');
@@ -93,11 +92,8 @@ function createMap() {
 
 function animate() {
     requestAnimationFrame(animate);
-	    if (mixer) {
-        const delta = clock.getDelta();
-        mixer.update(delta);
-    }
- // 1. ЛОГИ И СОСТОЯНИЕ (Твой дебаг-блок)
+
+    // 1. ЛОГИ И СОСТОЯНИЕ (Твой дебаг-блок)
     if (isPointerLocked) {
         if (Date.now() - (window.lastLog || 0) > 1000) {
             console.log(`[ДВИЖЕНИЕ]: W:${moveForward} S:${moveBackward} A:${moveLeft} D:${moveRight}`);
@@ -142,6 +138,7 @@ function animate() {
             }
         }
     }
+
     // 4. ФИНАЛЬНАЯ ОТРИСОВКА СЦЕНЫ (Один раз в самом конце!)
     if (renderer && scene && camera) {
         renderer.render(scene, camera);
