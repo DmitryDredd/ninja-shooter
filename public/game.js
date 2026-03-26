@@ -292,7 +292,7 @@ setInterval(sendPlayerMove, 50);
 
 // Звук выстрела
 // Звук выстрела (оставляем только одну строку)
-const shootSound = new Audio('usp1.wav'); 
+const shootSound = new Audio('ak47-1.wav'); 
 
 document.addEventListener('click', () => {
     // Шаг 1: Входим в игру
@@ -455,7 +455,7 @@ function loadWeaponModel() {
     const weaponLoader = new THREE.GLTFLoader();
     
     // 2. Пытаемся загрузить твой будущий Калаш
-    weaponLoader.load('weapon.glb', (gltf) => { 
+    weaponLoader.load('ak47.glb', (gltf) => { 
         weaponModel = gltf.scene;
         weaponModel.scale.set(0.1, 0.1, 0.1); // Размер
         weaponModel.position.set(0.4, -0.5, -1.2); // Позиция в руках
