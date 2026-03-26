@@ -528,45 +528,35 @@ function loadWeaponModel() {
     weaponLoader.load('ak47.glb', (gltf) => { 
         weaponModel = gltf.scene;
 
-        // 1. МАСШТАБ: Если 10 мало, попробуй 15. Это "золотая середина"
-        weaponModel.scale.set(15, 15, 15); 
+        // 1. ПРИНУДИТЕЛЬНЫЙ ЦВЕТ (чтобы проверить, есть ли вообще геометрия)
+        weaponModel.traverse((child) => {
+            if (child.isMesh) {
+                // Если не видишь модель — закомментируй строку ниже, чтобы вернуть текстуры
+                // child.material = new THREE.MeshBasicMaterial({ color: 0x00ff88, wireframe: true });
+            }
+        });
 
-        // 2. ПОЗИЦИЯ: X: 0.6 (справа), Y: -0.6 (ниже центра), Z: -1.2 (перед собой)
-        weaponModel.position.set(0.6, -0.6, -1.2); 
+        // 2. МАСШТАБ (для CS 1.6 моделей попробуй 20 — это средний вариант)
+        weaponModel.scale.set(20, 20, 20); 
+
+        // 3. ПОЗИЦИЯ (справа и чуть впереди)
+        weaponModel.position.set(0.8, -0.6, -1.5); 
         
-        // 3. ПОВОРОТ: Разворачиваем ствол ОТ СЕБЯ
+        // 4. ПОВОРОТ (в Blender ось Y и Z часто путаются)
         weaponModel.rotation.y = Math.PI; 
 
-        // 4. ПРИВЯЗКА: Оружие "в руках" у камеры
         camera.add(weaponModel);
         
-        // 5. АНИМАЦИЯ: Подготавливаем затвор (если он есть в .glb)
-        if (gltf.animations && gltf.animations.length > 0) {
-            mixer = new THREE.AnimationMixer(weaponModel);
-            // Пытаемся найти анимацию выстрела
-            const action = THREE.AnimationClip.findByName(gltf.animations, 'shoot') || gltf.animations[0];
-            window.shootAction = mixer.clipAction(action);
-            window.shootAction.setLoop(THREE.LoopOnce);
-        }
+        // КРИТИЧНО: Камера ДОЛЖНА быть в сцене
+        if (!scene.children.includes(camera)) scene.add(camera);
 
-        // 6. ГЛАВНЫЙ ФИКС: Камера должна быть в сцене, чтобы видеть то, что в руках!
-        if (!scene.children.includes(camera)) {
-            scene.add(camera);
-        }
-
-        console.log("🔥 АК-47 УСПЕШНО ЗАРЯЖЕН В РУКИ!");
+        console.log("✅ МОДЕЛЬ ЗАГРУЖЕНА. Ищем её в кадре...");
 
     }, undefined, (error) => {
-        // --- ЗАГЛУШКА (Если файла ak47.glb нет на GitHub) ---
-        console.warn("Файл ak47.glb не найден. Создаю временный неоновый клинок!");
-        const geo = new THREE.BoxGeometry(0.1, 0.1, 1.5);
-        const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
-        weaponModel = new THREE.Mesh(geo, mat);
-        weaponModel.position.set(0.5, -0.5, -1.0);
-        camera.add(weaponModel);
-        if (!scene.children.includes(camera)) scene.add(camera);
+        console.error("Ошибка загрузки модели:", error);
     });
 }
+
 
 
 
