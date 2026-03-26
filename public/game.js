@@ -23,6 +23,7 @@ let isPointerLocked = false;
 let weaponModel;
 let players = {};
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+let lastLog = 0;
 
 function init() {
     // 1. Создаем сцену и темный фон (в стиле твоего менеджера)
@@ -91,25 +92,39 @@ function createMap() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // 1. ЛОГИКА ТВОЕГО ДВИЖЕНИЯ (Добавлено!)
-    // Проверяем: заблокирована ли мышь и жив ли игрок
+    if (isPointerLocked) {
+        // 1. ЛОГИ И СОСТОЯНИЕ (Твой код с фиксом скобки)
+        if (Date.now() - (window.lastLog || 0) > 1000) {
+            console.log(`[ДВИЖЕНИЕ]: W:${moveForward} S:${moveBackward} A:${moveLeft} D:${moveRight}`);
+            console.log(`[КООРДИНАТЫ]: X:${camera.position.x.toFixed(2)} Z:${camera.position.z.toFixed(2)}`);
+            
+            // ПРОВЕРКА ДАННЫХ: если тут будет null/undefined - вот причина ступора!
+            console.log(`[DEBUG]: MyID: ${myPlayerId} | Im Alive: ${players[myPlayerId] ? 'YES' : 'NO'}`);
+            
+            window.lastLog = Date.now();
+        } 
+    } // <-- Эту скобку ты пропустил!
+
+    // 2. ЛОГИКА ТВОЕГО ДВИЖЕНИЯ
     if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
-        const speed = 0.15; // Скорость передвижения
+        const speed = 0.15; 
         
-        // Двигаем камеру относительно того, куда она смотрит
         if (moveForward) camera.translateZ(-speed);
         if (moveBackward) camera.translateZ(speed);
         if (moveLeft) camera.translateX(-speed);
         if (moveRight) camera.translateX(speed);
         
-        // ФИКС ВЫСОТЫ: удерживаем камеру на уровне глаз (1.6м), чтобы не "взлетать"
         camera.position.y = 1.6;
 
-        // Отправляем свои координаты на сервер, чтобы другие нас видели
         if (typeof sendPlayerMove === 'function') {
             sendPlayerMove();
         }
     }
+
+    // Рендерим мир
+    if (renderer) renderer.render(scene, camera);
+}
+
 
     // 2. ОБНОВЛЕНИЕ ПОЗИЦИЙ ДРУГИХ ИГРОКОВ (Твой оригинальный код)
     for (const playerId in playerMeshes) {
@@ -139,6 +154,7 @@ function animate() {
 
 
 function handleKeyDown(event) {
+	console.log(`[КЛАВИША НАЖАТА]: ${event.code} | В игре: ${isPointerLocked}`);
     // Используем code вместо key, чтобы работало на любой раскладке (даже русской)
     switch(event.code) {
         case 'KeyW': moveForward = true; break;
@@ -163,6 +179,10 @@ function requestPointerLock() {
 
 function onPointerLockChange() {
     isPointerLocked = (document.pointerLockElement === document.body);
+    console.log(`[STATUS]: Управление активно: ${isPointerLocked}`);
+    if (isPointerLocked) {
+        console.warn("🎯 НИНДЗЯ В ГРЕ! Попробуй нажать W");
+    }
 }
 
 let yaw = 0, pitch = 0;
@@ -262,6 +282,7 @@ const shootSound = new Audio('usp1.wav');
 
 document.addEventListener('click', () => {
     // Шаг 1: Входим в игру
+	console.log(`[КЛИК]: Захват мыши был: ${isPointerLocked}`);
     if (!isPointerLocked) {
         document.body.requestPointerLock();
         return; 
