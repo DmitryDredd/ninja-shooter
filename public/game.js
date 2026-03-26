@@ -525,37 +525,26 @@ players[playerId].position.z);
 function loadWeaponModel() {
     const weaponLoader = new THREE.GLTFLoader();
     
-    weaponLoader.load('ak47.glb', (gltf) => { 
+    // Впиши здесь точное название старого файла (например, 'weapon.glb')
+    weaponLoader.load('weapon.glb', (gltf) => { 
         weaponModel = gltf.scene;
 
-        // 1. ПРИНУДИТЕЛЬНЫЙ ЦВЕТ (чтобы проверить, есть ли вообще геометрия)
-        weaponModel.traverse((child) => {
-            if (child.isMesh) {
-                // Если не видишь модель — закомментируй строку ниже, чтобы вернуть текстуры
-                // child.material = new THREE.MeshBasicMaterial({ color: 0x00ff88, wireframe: true });
-            }
-        });
+        // Поставь масштаб, который работал раньше (обычно 0.1 или 1.0)
+        weaponModel.scale.set(0.1, 0.1, 0.1); 
 
-        // 2. МАСШТАБ (для CS 1.6 моделей попробуй 20 — это средний вариант)
-        weaponModel.scale.set(20, 20, 20); 
-
-        // 3. ПОЗИЦИЯ (справа и чуть впереди)
-        weaponModel.position.set(0.8, -0.6, -1.5); 
+        // Позиция: справа и чуть впереди
+        weaponModel.position.set(0.5, -0.5, -1.2); 
         
-        // 4. ПОВОРОТ (в Blender ось Y и Z часто путаются)
-        weaponModel.rotation.y = Math.PI; 
-
         camera.add(weaponModel);
         
-        // КРИТИЧНО: Камера ДОЛЖНА быть в сцене
         if (!scene.children.includes(camera)) scene.add(camera);
 
-        console.log("✅ МОДЕЛЬ ЗАГРУЖЕНА. Ищем её в кадре...");
-
+        console.log("✅ СТАРАЯ ПУШКА ВЕРНУЛАСЬ В СТРОЙ!");
     }, undefined, (error) => {
-        console.error("Ошибка загрузки модели:", error);
+        console.error("Ошибка загрузки старой модели:", error);
     });
 }
+
 
 
 
