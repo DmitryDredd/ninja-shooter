@@ -1,5 +1,7 @@
 // Автоматическое подключение к текущему серверу через безопасный протокол (WSS)
 const socket = io(); 
+let mixer; 
+const clock = new THREE.Clock();
 socket.on('connect', () => {
     console.log("✅ СОЕДИНЕНИЕ УСТАНОВЛЕНО! Мой ID:", socket.id);
     const statusBox = document.getElementById('status');
@@ -91,8 +93,11 @@ function createMap() {
 
 function animate() {
     requestAnimationFrame(animate);
-
-    // 1. ЛОГИ И СОСТОЯНИЕ (Твой дебаг-блок)
+	    if (mixer) {
+        const delta = clock.getDelta();
+        mixer.update(delta);
+    }
+ // 1. ЛОГИ И СОСТОЯНИЕ (Твой дебаг-блок)
     if (isPointerLocked) {
         if (Date.now() - (window.lastLog || 0) > 1000) {
             console.log(`[ДВИЖЕНИЕ]: W:${moveForward} S:${moveBackward} A:${moveLeft} D:${moveRight}`);
@@ -137,7 +142,6 @@ function animate() {
             }
         }
     }
-
     // 4. ФИНАЛЬНАЯ ОТРИСОВКА СЦЕНЫ (Один раз в самом конце!)
     if (renderer && scene && camera) {
         renderer.render(scene, camera);
@@ -294,26 +298,68 @@ setInterval(sendPlayerMove, 50);
 // Звук выстрела (оставляем только одну строку)
 const shootSound = new Audio('ak47-1.wav'); 
 
-document.addEventListener('click', () => {
-    // Шаг 1: Входим в игру
-	console.log(`[КЛИК]: Захват мыши был: ${isPointerLocked}`);
-    if (!isPointerLocked) {
-        document.body.requestPointerLock();
-        return; 
-    }
+let isShooting = false;
+let shootInterval;
 
-    // Шаг 2: Стреляем
-    if (players[myPlayerId] && players[myPlayerId].health > 0) {
-        const targetPosition = new THREE.Vector3(camera.position.x, camera.position.y, camera.position.z);
-        targetPosition.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion));
-        
-        socket.emit('shoot', { targetPosition });
+let shootTimer = null;
 
-        // Бабахаем из USP
-        shootSound.currentTime = 0; 
-        shootSound.play();
+document.addEventListener('mousedown', (e) => {
+    // 0 — это левая кнопка мыши
+    if (e.button === 0 && isPointerLocked && players[myPlayerId]?.health > 0) {
+        handleShoot(); // Первый выстрел сразу
+        shootTimer = setInterval(handleShoot, 100); // Очередь каждые 0.1 сек
     }
 });
+
+document.addEventListener('mouseup', () => {
+    clearInterval(shootTimer); // Остановить стрельбу
+});
+
+
+function handleShoot() {
+    if (!players[myPlayerId] || players[myPlayerId].health <= 0) return;
+
+    // 1. Звук (сброс в 0 для эффекта очереди)
+    shootSound.currentTime = 0;
+    shootSound.play();
+
+    // 2. АНИМАЦИЯ ЗАТВОРА (из файла ak47.glb)
+    if (window.shootAction) {
+        window.shootAction.stop(); // Сбрасываем предыдущий цикл
+        window.shootAction.play(); // Затвор дергается мгновенно
+    }
+
+    // 3. Вспышка (Огонь из дула — делаем ярче)
+    const flash = new THREE.PointLight(0xffaa00, 15, 8);
+    // Подбираем координаты под конец ствола (чуть правее и вперед)
+    flash.position.set(0.6, -0.4, -2.5); 
+    camera.add(flash);
+    // Удаляем вспышку очень быстро (через 40мс)
+    setTimeout(() => camera.remove(flash), 40);
+
+    // 4. Анимация отдачи модели (физический рывок)
+    if (weaponModel) {
+        weaponModel.position.z += 0.08; // Резкий откат назад
+        weaponModel.rotation.x -= 0.04; // Ствол подлетает вверх
+        
+        setTimeout(() => {
+            if (weaponModel) {
+                weaponModel.position.z -= 0.08;
+                weaponModel.rotation.x += 0.04;
+            }
+        }, 50); // Возвращаем в исходную позицию через 50мс
+    }
+
+    // 5. Логика полета пули и отправка на сервер
+    const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const targetPosition = new THREE.Vector3().copy(camera.position).add(direction.multiplyScalar(100));
+    
+    socket.emit('shoot', { 
+        targetPosition: { x: targetPosition.x, y: targetPosition.y, z: targetPosition.z } 
+    });
+}
+
+
 
 
 
@@ -453,45 +499,44 @@ players[playerId].position.z);
 function loadWeaponModel() {
     const weaponLoader = new THREE.GLTFLoader();
     
-    // 1. Убедись, что на GitHub файл называется именно ak47.glb
     weaponLoader.load('ak47.glb', (gltf) => { 
         weaponModel = gltf.scene;
 
-        // КРИТИЧЕСКИЙ ФИКС: Увеличиваем масштаб. 
-        // Если модель из CS 1.6, ставь от 1.0 до 5.0, чтобы увидеть её
-        weaponModel.scale.set(1.5, 1.5, 1.5); 
+        weaponModel.scale.set(45, 45, 45); // Смело ставь 45, если модель из CS 1.6
+        weaponModel.position.set(0.6, -0.7, -1.2); // Позиция: справа, чуть ниже и ближе
 
-        // ПОЗИЦИЯ: X: 0.5 (справа), Y: -0.6 (чуть ниже центра), Z: -1.2 (перед собой)
-        weaponModel.position.set(0.5, -0.6, -1.2); 
-        
-        // ПОВОРОТ: Если ствол смотрит в тебя, разверни его на 180 градусов
-        weaponModel.rotation.y = Math.PI; 
+        weaponModel.rotation.y = Math.PI; // Разворачиваем ствол от себя
 
-        // Добавляем к камере, чтобы пушка двигалась за взглядом
         camera.add(weaponModel);
         
-        // ВАЖНО: Камера должна быть в сцене, чтобы видеть то, что к ней привязано
-        if (!scene.children.includes(camera)) {
-            scene.add(camera);
+        // 3. АНИМАЦИЯ (Затвор и отдача)
+        mixer = new THREE.AnimationMixer(weaponModel);
+        
+        // Ищем анимацию выстрела (в моделях CS она часто 'shoot' или 'fire')
+        const shootAnim = THREE.AnimationClip.findByName(gltf.animations, 'shoot') || gltf.animations[0];
+        if (shootAnim) {
+            window.shootAction = mixer.clipAction(shootAnim);
+            window.shootAction.setLoop(THREE.LoopOnce); 
+            window.shootAction.clampWhenFinished = true;
         }
 
-        console.log("🎯 КАЛАШ ИЗ КОНТРЫ В РУКАХ!");
+        // 4. ДОБАВЛЯЕМ КАМЕРУ В СЦЕНУ (чтобы видеть пушку)
+        if (!scene.children.includes(camera)) scene.add(camera);
+
+        console.log("🔥 КАЛАШ С АНИМАЦИЕЙ ЗАГРУЖЕН!");
+
     }, undefined, (error) => {
-        // --- ЗАГЛУШКА (Если файл не найден или ошибка в пути) ---
+        // --- ЗАГЛУШКА (если файла нет) ---
         console.warn("Файл ak47.glb не найден. Создаю временный неоновый клинок!");
-        
         const geo = new THREE.BoxGeometry(0.1, 0.1, 1.5);
         const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
         weaponModel = new THREE.Mesh(geo, mat);
-        
         weaponModel.position.set(0.5, -0.5, -1.0);
         camera.add(weaponModel);
-        
-        if (!scene.children.includes(camera)) {
-            scene.add(camera);
-        }
+        if (!scene.children.includes(camera)) scene.add(camera);
     });
 }
+
 
 
 
