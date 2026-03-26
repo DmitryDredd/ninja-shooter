@@ -522,31 +522,47 @@ players[playerId].position.z);
 
 
 
+
 function loadWeaponModel() {
     const weaponLoader = new THREE.GLTFLoader();
     
-    // Впиши здесь точное название старого файла (например, 'weapon.glb')
-    weaponLoader.load('weapon.glb', (gltf) => { 
+    weaponLoader.load('ak47.glb', (gltf) => { 
         weaponModel = gltf.scene;
 
-        // Поставь масштаб, который работал раньше (обычно 0.1 или 1.0)
-        weaponModel.scale.set(0.1, 0.1, 0.1); 
+        weaponModel.scale.set(20, 20, 20); // Смело ставь 45, если модель из CS 1.6
+        weaponModel.position.set(0.6, -0.7, -1.2); // Позиция: справа, чуть ниже и ближе
 
-        // Позиция: справа и чуть впереди
-        weaponModel.position.set(0.5, -0.5, -1.2); 
-        
+        weaponModel.rotation.y = Math.PI; // Разворачиваем ствол от себя
+
         camera.add(weaponModel);
         
+        // 3. АНИМАЦИЯ (Затвор и отдача)
+        mixer = new THREE.AnimationMixer(weaponModel);
+        
+        // Ищем анимацию выстрела (в моделях CS она часто 'shoot' или 'fire')
+        const shootAnim = THREE.AnimationClip.findByName(gltf.animations, 'shoot') || gltf.animations[0];
+        if (shootAnim) {
+            window.shootAction = mixer.clipAction(shootAnim);
+            window.shootAction.setLoop(THREE.LoopOnce); 
+            window.shootAction.clampWhenFinished = true;
+        }
+
+        // 4. ДОБАВЛЯЕМ КАМЕРУ В СЦЕНУ (чтобы видеть пушку)
         if (!scene.children.includes(camera)) scene.add(camera);
 
-        console.log("✅ СТАРАЯ ПУШКА ВЕРНУЛАСЬ В СТРОЙ!");
+        console.log("🔥 КАЛАШ С АНИМАЦИЕЙ ЗАГРУЖЕН!");
+
     }, undefined, (error) => {
-        console.error("Ошибка загрузки старой модели:", error);
+        // --- ЗАГЛУШКА (если файла нет) ---
+        console.warn("Файл ak47.glb не найден. Создаю временный неоновый клинок!");
+        const geo = new THREE.BoxGeometry(0.1, 0.1, 1.5);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+        weaponModel = new THREE.Mesh(geo, mat);
+        weaponModel.position.set(0.5, -0.5, -1.0);
+        camera.add(weaponModel);
+        if (!scene.children.includes(camera)) scene.add(camera);
     });
 }
-
-
-
 
 
 
