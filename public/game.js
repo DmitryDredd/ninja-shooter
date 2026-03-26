@@ -215,24 +215,46 @@ function sendMessage() {
 
 socket.on('updatePlayers', (data) => {
     players = data;
+    
+    // ФИКС №1: Сразу запоминаем свой ID из сокета, чтобы логика движения ожила
+    myPlayerId = socket.id; 
+
     for (const playerId in players) {
+        const p = players[playerId];
+
+        // ФИКС №2: Проверка на наличие позиции (чтобы не было ошибок в консоли)
+        if (!p.position) continue;
+
+        // Создаем меш (тело) игрока, если его еще нет на сцене
         if (!playerMeshes[playerId]) {
-            const geometry = new THREE.BoxGeometry();
-            const material = new THREE.MeshBasicMaterial({ color: players[playerId].team === 'red' ? 0xff0000 :
-0x0000ff });
+            console.log(`[SYSTEM]: Новый игрок в кадре: ${playerId}`);
+            const geometry = new THREE.BoxGeometry(1, 2, 1); // Делаем игрока ростом в 2 метра
+            const material = new THREE.MeshBasicMaterial({ 
+                color: p.team === 'red' ? 0xff0000 : 0x0000ff 
+            });
             playerMeshes[playerId] = new THREE.Mesh(geometry, material);
             scene.add(playerMeshes[playerId]);
         }
+
+        // Логика разделения: Чужие игроки / Твой интерфейс
         if (playerId !== myPlayerId) {
-            const targetPosition = new THREE.Vector3(players[playerId].position.x, players[playerId].position.y,
-players[playerId].position.z);
-            playerMeshes[playerId].position.lerp(targetPosition, 0.1);
+            // Плавное перемещение чужих игроков к их координатам на сервере
+            const targetPos = new THREE.Vector3(p.position.x, p.position.y, p.position.z);
+            playerMeshes[playerId].position.lerp(targetPos, 0.2);
+            
+            // Если сервер прислал поворот — поворачиваем меш
+            if (p.rotation) {
+                playerMeshes[playerId].rotation.y = p.rotation.y;
+            }
         } else {
-            myPlayerId = playerId;
-            healthDisplay.textContent = `Health: ${players[playerId].health}`;
+            // Обновляем ТВОЙ интерфейс (HP)
+            if (healthDisplay) {
+                healthDisplay.textContent = `Health: ${p.health}`;
+            }
         }
     }
 });
+
 
 socket.on('bulletFired', ({ shooterId, targetPosition }) => {
     if (playerMeshes[shooterId]) {
