@@ -28,149 +28,146 @@ let moveForward = false, moveBackward = false, moveLeft = false, moveRight = fal
 let lastLog = 0;
 
 function init() {
-    // 1. Создаем сцену и темный фон (как в твоем менеджере)
+    // 1. Создаем сцену и темный фон (в стиле твоего менеджера)
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020202); 
 
-    // 2. Камера: поднимаем на уровень глаз (1.6м) и задаем порядок вращения YXZ
+    // 2. Камера: поднимаем на 1.6м и ставим правильный порядок вращения
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 1.6, 5); 
-    camera.rotation.order = 'YXZ'; // КРИТИЧНО для шутера, чтобы не "заносило" голову
+    camera.rotation.order = 'YXZ'; // Критично для FPS!
 
-    // 3. Рендерер с антиалиасингом (чтобы не было "лесенок")
+    // 3. Рендерер с антиалиасингом (чтобы не было "лесенок" на краях)
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // 4. СВЕТ: делаем мир объемным
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Мягкий общий свет
+    // 4. СВЕТ: теперь мир станет объемным
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Общий мягкий свет
     scene.add(ambientLight);
 
-    const ninjaLight = new THREE.PointLight(0x00ff88, 1, 100); // Твой фирменный зеленый свет
+    const ninjaLight = new THREE.PointLight(0x00ff88, 1, 100); // Зеленый неоновый свет
     ninjaLight.position.set(5, 10, 5);
     scene.add(ninjaLight);
 
-    // 5. СЕТКА ПОЛА: чтобы видеть скорость и направление (неон)
-    const grid = new THREE.GridHelper(150, 50, 0x00ff88, 0x222222);
+    // 5. СЕТКА ПОЛА: чтобы видеть скорость и направление движения
+    const grid = new THREE.GridHelper(100, 50, 0x00ff88, 0x222222);
     scene.add(grid);
 
     // 6. Создание карты (стен и препятствий)
-    if (typeof createMap === 'function') createMap();
+    createMap();
 
     // 7. Обработка нажатий клавиш (W, A, S, D)
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
 
-    // 8. УПРАВЛЕНИЕ МЫШЬЮ (Клик для входа + Pointer Lock)
-    document.addEventListener('click', () => {
-        // Если мышь еще не захвачена — захватываем
-        if (!isPointerLocked) {
-            document.body.requestPointerLock();
-        } else {
-            // Если уже в игре — стреляем по клику!
-            if (typeof handleShoot === 'function') handleShoot();
-        }
-    });
-
-    // Отслеживаем изменения Pointer Lock (вход/выход по Esc)
-    document.addEventListener('pointerlockchange', onPointerLockChange, false);
-    // Движение камеры мышью
+    // 8. Управление мышью (Pointer Lock уже внутри твоего общего клика)
+    document.addEventListener('pointerlockchange', onPointerLockChange);
     document.addEventListener('mousemove', onMouseMove, false);
 
-    // 9. Присоединение к команде
-    const team = confirm("Вступить в КРАСНЫЙ ОТРЯД? (OK - Красные, Отмена - Синие)") ? 'red' : 'blue';
+    // 9. Присоединение к команде (через confirm, чтобы не мучить пользователя prompt)
+    const team = confirm("Вступить в КРАСНЫЙ ОТРЯД? (Отмена - СИНИЕ)") ? 'red' : 'blue';
     socket.emit('joinTeam', team);
 
-    // 10. Запуск оружия и цикла анимации
-    if (typeof loadWeaponModel === 'function') loadWeaponModel();
-    
-    // ВАЖНО: Камера должна быть в сцене, чтобы видеть то, что к ней привязано (пушку)
-    scene.add(camera); 
-    
+    // 10. Запуск анимации
+    loadWeaponModel();
     animate();
 }
 
-// ГЛАВНЫЙ КЛЮЧ ЗАЖИГАНИЯ (В самом конце файла)
-init();
-
 
 function createMap() {
-    // Делаем пол огромным (1000 на 1000 метров)
-    const planeGeometry = new THREE.PlaneGeometry(1000, 1000);
+    const planeGeometry = new THREE.PlaneGeometry(10, 10);
     const planeMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-    
-    // КРИТИЧНО: Поворачиваем пол, чтобы он лежал горизонтально
-    plane.rotation.x = -Math.PI / 2; 
     scene.add(plane);
 
-    // ДОБАВЛЯЕМ СЕТКУ (Grid) — без неё ты не увидишь движения!
-    const grid = new THREE.GridHelper(1000, 100, 0x00ff88, 0x444444);
-    scene.add(grid);
-
-    // Твои коробки (препятствия)
-    for (let i = 0; i < 20; i++) {
-        const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
-        const boxMaterial = new THREE.MeshBasicMaterial({ color: 0x555555 });
+    // Препятствия
+    for (let i = 0; i < 10; i++) {
+        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const boxMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
         const box = new THREE.Mesh(boxGeometry, boxMaterial);
-        // Раскидываем их подальше
-        box.position.set(Math.random() * 100 - 50, 1, Math.random() * 100 - 50);
+        box.position.set(Math.random() * 10 - 5, 0.5, Math.random() * 10 - 5);
         scene.add(box);
     }
 }
 
 function animate() {
     requestAnimationFrame(animate);
-
-    // 1. ПРОВЕРКА: Двигаем камеру ВСЕГДА (даже без мыши), чтобы проверить рендер
-    // Если ты заспавнился и камера сама поехала вперед — значит рендер работает!
+	    if (mixer) {
+        const delta = clock.getDelta();
+        mixer.update(delta);
+    }
+ // 1. ЛОГИ И СОСТОЯНИЕ (Твой дебаг-блок)
     if (isPointerLocked) {
-        const speed = 2.0; // ТУРБО-СКОРОСТЬ для теста
+        if (Date.now() - (window.lastLog || 0) > 1000) {
+            console.log(`[ДВИЖЕНИЕ]: W:${moveForward} S:${moveBackward} A:${moveLeft} D:${moveRight}`);
+            console.log(`[КООРДИНАТЫ]: X:${camera.position.x.toFixed(2)} Z:${camera.position.z.toFixed(2)}`);
+            console.log(`[DEBUG]: MyID: ${myPlayerId} | Im Alive: ${players[myPlayerId] ? 'YES' : 'NO'}`);
+            window.lastLog = Date.now();
+        } 
+    }
+
+    // 2. ЛОГИКА ТВОЕГО ДВИЖЕНИЯ
+    if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
+        const speed = 0.15; 
         
         if (moveForward) camera.translateZ(-speed);
         if (moveBackward) camera.translateZ(speed);
         if (moveLeft) camera.translateX(-speed);
         if (moveRight) camera.translateX(speed);
         
-        camera.position.y = 1.6; // Фикс высоты
+        camera.position.y = 1.6;
 
-        if (typeof sendPlayerMove === 'function') sendPlayerMove();
-    }
-
-    // 2. ОБНОВЛЕНИЕ ДРУГИХ (твой код)
-    for (const id in playerMeshes) {
-        if (id !== myPlayerId && players[id]) {
-            playerMeshes[id].position.lerp(players[id].position, 0.1);
+        if (typeof sendPlayerMove === 'function') {
+            sendPlayerMove();
         }
     }
 
-    // 3. САМОЕ ВАЖНОЕ: Рендерим именно ТУ камеру, которую двигаем
+    // 3. ОБНОВЛЕНИЕ ПОЗИЦИЙ ДРУГИХ ИГРОКОВ
+    for (const playerId in playerMeshes) {
+        if (playerId !== myPlayerId && players[playerId]) {
+            const targetPosition = new THREE.Vector3(
+                players[playerId].position.x, 
+                players[playerId].position.y,
+                players[playerId].position.z
+            );
+            
+            playerMeshes[playerId].position.lerp(targetPosition, 0.1);
+
+            if (players[playerId].rotation) {
+                const targetRotation = new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler(players[playerId].rotation.x, players[playerId].rotation.y, players[playerId].rotation.z)
+                );
+                playerMeshes[playerId].quaternion.slerp(targetRotation, 0.1);
+            }
+        }
+    }
+    // 4. ФИНАЛЬНАЯ ОТРИСОВКА СЦЕНЫ (Один раз в самом конце!)
     if (renderer && scene && camera) {
         renderer.render(scene, camera);
-    } else {
-        console.error("ОШИБКА: Рендерер, сцена или камера потеряны!");
     }
 }
 
 
-
 function handleKeyDown(event) {
-    // Этот лог покажет, ЧТО именно видит браузер
-    console.log("РЕАЛЬНЫЙ КОД КНОПКИ:", event.code); 
-
-    if (event.code === 'KeyW') moveForward = true;
-    if (event.code === 'KeyS') moveBackward = true;
-    if (event.code === 'KeyA') moveLeft = true;
-    if (event.code === 'KeyD') moveRight = true;
+	console.log(`[КЛАВИША НАЖАТА]: ${event.code} | В игре: ${isPointerLocked}`);
+    // Используем code вместо key, чтобы работало на любой раскладке (даже русской)
+    switch(event.code) {
+        case 'KeyW': moveForward = true; break;
+        case 'KeyS': moveBackward = true; break;
+        case 'KeyA': moveLeft = true; break;
+        case 'KeyD': moveRight = true; break;
+    }
 }
 
 function handleKeyUp(event) {
-    if (event.code === 'KeyW') moveForward = false;
-    if (event.code === 'KeyS') moveBackward = false;
-    if (event.code === 'KeyA') moveLeft = false;
-    if (event.code === 'KeyD') moveRight = false;
+    switch(event.code) {
+        case 'KeyW': moveForward = false; break;
+        case 'KeyS': moveBackward = false; break;
+        case 'KeyA': moveLeft = false; break;
+        case 'KeyD': moveRight = false; break;
+    }
 }
-
 
 function requestPointerLock() {
     document.body.requestPointerLock();
@@ -320,48 +317,30 @@ document.addEventListener('mouseup', () => {
 
 
 function handleShoot() {
-    if (!players[myPlayerId] || players[myPlayerId].health <= 0) return;
-
-    // 1. Звук (сброс в 0 для эффекта очереди)
+    // 1. Звук
     shootSound.currentTime = 0;
     shootSound.play();
 
-    // 2. АНИМАЦИЯ ЗАТВОРА (из файла ak47.glb)
-    if (window.shootAction) {
-        window.shootAction.stop(); // Сбрасываем предыдущий цикл
-        window.shootAction.play(); // Затвор дергается мгновенно
-    }
-
-    // 3. Вспышка (Огонь из дула — делаем ярче)
-    const flash = new THREE.PointLight(0xffaa00, 15, 8);
-    // Подбираем координаты под конец ствола (чуть правее и вперед)
-    flash.position.set(0.6, -0.4, -2.5); 
+    // 2. Вспышка (Огонь из дула)
+    const flash = new THREE.PointLight(0xffaa00, 10, 5);
+    flash.position.set(0.8, -0.5, -2.5); // Ставим примерно у конца ствола
     camera.add(flash);
-    // Удаляем вспышку очень быстро (через 40мс)
-    setTimeout(() => camera.remove(flash), 40);
+    setTimeout(() => camera.remove(flash), 30);
 
-    // 4. Анимация отдачи модели (физический рывок)
+    // 3. Анимация отдачи (оружие дергается)
     if (weaponModel) {
-        weaponModel.position.z += 0.08; // Резкий откат назад
-        weaponModel.rotation.x -= 0.04; // Ствол подлетает вверх
-        
+        weaponModel.position.z += 0.1; // Откат назад
+        weaponModel.rotation.x -= 0.05; // Ствол задирается вверх
         setTimeout(() => {
-            if (weaponModel) {
-                weaponModel.position.z -= 0.08;
-                weaponModel.rotation.x += 0.04;
-            }
-        }, 50); // Возвращаем в исходную позицию через 50мс
+            weaponModel.position.z -= 0.1;
+            weaponModel.rotation.x += 0.05;
+        }, 50);
     }
 
-    // 5. Логика полета пули и отправка на сервер
-    const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const targetPosition = new THREE.Vector3().copy(camera.position).add(direction.multiplyScalar(100));
-    
-    socket.emit('shoot', { 
-        targetPosition: { x: targetPosition.x, y: targetPosition.y, z: targetPosition.z } 
-    });
+    // 4. Отправка выстрела на сервер
+    const targetPosition = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).add(camera.position);
+    socket.emit('shoot', { targetPosition });
 }
-
 
 
 
@@ -505,9 +484,11 @@ function loadWeaponModel() {
     weaponLoader.load('ak47.glb', (gltf) => { 
         weaponModel = gltf.scene;
 
-        weaponModel.scale.set(20, 20, 20); // Смело ставь 45, если модель из CS 1.6
-        weaponModel.position.set(0.6, -0.7, -1.2); // Позиция: справа, чуть ниже и ближе
+        // 1. МАСШТАБ (делаем большим, как ты и хотел)
+        weaponModel.scale.set(15, 15, 15); 
 
+        // 2. ПОЗИЦИЯ И ПОВОРОТ (стволом вперед, справа от камеры)
+        weaponModel.position.set(0.6, -0.6, -1.5); 
         weaponModel.rotation.y = Math.PI; // Разворачиваем ствол от себя
 
         camera.add(weaponModel);
