@@ -28,51 +28,70 @@ let moveForward = false, moveBackward = false, moveLeft = false, moveRight = fal
 let lastLog = 0;
 
 function init() {
-    // 1. Создаем сцену и темный фон (в стиле твоего менеджера)
+    // 1. Создаем сцену и темный фон (как в твоем менеджере)
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020202); 
 
-    // 2. Камера: поднимаем на 1.6м и ставим правильный порядок вращения
+    // 2. Камера: поднимаем на уровень глаз (1.6м) и задаем порядок вращения YXZ
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 1.6, 5); 
-    camera.rotation.order = 'YXZ'; // Критично для FPS!
+    camera.rotation.order = 'YXZ'; // КРИТИЧНО для шутера, чтобы не "заносило" голову
 
-    // 3. Рендерер с антиалиасингом (чтобы не было "лесенок" на краях)
+    // 3. Рендерер с антиалиасингом (чтобы не было "лесенок")
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // 4. СВЕТ: теперь мир станет объемным
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Общий мягкий свет
+    // 4. СВЕТ: делаем мир объемным
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Мягкий общий свет
     scene.add(ambientLight);
 
-    const ninjaLight = new THREE.PointLight(0x00ff88, 1, 100); // Зеленый неоновый свет
+    const ninjaLight = new THREE.PointLight(0x00ff88, 1, 100); // Твой фирменный зеленый свет
     ninjaLight.position.set(5, 10, 5);
     scene.add(ninjaLight);
 
-    // 5. СЕТКА ПОЛА: чтобы видеть скорость и направление движения
-    const grid = new THREE.GridHelper(100, 50, 0x00ff88, 0x222222);
+    // 5. СЕТКА ПОЛА: чтобы видеть скорость и направление (неон)
+    const grid = new THREE.GridHelper(150, 50, 0x00ff88, 0x222222);
     scene.add(grid);
 
     // 6. Создание карты (стен и препятствий)
-    createMap();
+    if (typeof createMap === 'function') createMap();
 
     // 7. Обработка нажатий клавиш (W, A, S, D)
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
 
-    // 8. Управление мышью (Pointer Lock уже внутри твоего общего клика)
-    document.addEventListener('pointerlockchange', onPointerLockChange);
+    // 8. УПРАВЛЕНИЕ МЫШЬЮ (Клик для входа + Pointer Lock)
+    document.addEventListener('click', () => {
+        // Если мышь еще не захвачена — захватываем
+        if (!isPointerLocked) {
+            document.body.requestPointerLock();
+        } else {
+            // Если уже в игре — стреляем по клику!
+            if (typeof handleShoot === 'function') handleShoot();
+        }
+    });
+
+    // Отслеживаем изменения Pointer Lock (вход/выход по Esc)
+    document.addEventListener('pointerlockchange', onPointerLockChange, false);
+    // Движение камеры мышью
     document.addEventListener('mousemove', onMouseMove, false);
 
-    // 9. Присоединение к команде (через confirm, чтобы не мучить пользователя prompt)
-    const team = confirm("Вступить в КРАСНЫЙ ОТРЯД? (Отмена - СИНИЕ)") ? 'red' : 'blue';
+    // 9. Присоединение к команде
+    const team = confirm("Вступить в КРАСНЫЙ ОТРЯД? (OK - Красные, Отмена - Синие)") ? 'red' : 'blue';
     socket.emit('joinTeam', team);
 
-    // 10. Запуск анимации
-    loadWeaponModel();
+    // 10. Запуск оружия и цикла анимации
+    if (typeof loadWeaponModel === 'function') loadWeaponModel();
+    
+    // ВАЖНО: Камера должна быть в сцене, чтобы видеть то, что к ней привязано (пушку)
+    scene.add(camera); 
+    
     animate();
 }
+
+// ГЛАВНЫЙ КЛЮЧ ЗАЖИГАНИЯ (В самом конце файла)
+init();
 
 
 function createMap() {
