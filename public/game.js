@@ -95,20 +95,30 @@ init();
 
 
 function createMap() {
-    const planeGeometry = new THREE.PlaneGeometry(10, 10);
+    // Делаем пол огромным (1000 на 1000 метров)
+    const planeGeometry = new THREE.PlaneGeometry(1000, 1000);
     const planeMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+    
+    // КРИТИЧНО: Поворачиваем пол, чтобы он лежал горизонтально
+    plane.rotation.x = -Math.PI / 2; 
     scene.add(plane);
 
-    // Препятствия
-    for (let i = 0; i < 10; i++) {
-        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const boxMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
+    // ДОБАВЛЯЕМ СЕТКУ (Grid) — без неё ты не увидишь движения!
+    const grid = new THREE.GridHelper(1000, 100, 0x00ff88, 0x444444);
+    scene.add(grid);
+
+    // Твои коробки (препятствия)
+    for (let i = 0; i < 20; i++) {
+        const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
+        const boxMaterial = new THREE.MeshBasicMaterial({ color: 0x555555 });
         const box = new THREE.Mesh(boxGeometry, boxMaterial);
-        box.position.set(Math.random() * 10 - 5, 0.5, Math.random() * 10 - 5);
+        // Раскидываем их подальше
+        box.position.set(Math.random() * 100 - 50, 1, Math.random() * 100 - 50);
         scene.add(box);
     }
 }
+
 
 function animate() {
     requestAnimationFrame(animate);
@@ -521,7 +531,7 @@ function loadWeaponModel() {
     weaponLoader.load('ak47.glb', (gltf) => { 
         weaponModel = gltf.scene;
 
-        weaponModel.scale.set(45, 45, 45); // Смело ставь 45, если модель из CS 1.6
+        weaponModel.scale.set(50, 50, 50); // Смело ставь 45, если модель из CS 1.6
         weaponModel.position.set(0.6, -0.7, -1.2); // Позиция: справа, чуть ниже и ближе
 
         weaponModel.rotation.y = Math.PI; // Разворачиваем ствол от себя
