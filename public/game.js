@@ -92,18 +92,15 @@ function createMap() {
 function animate() {
     requestAnimationFrame(animate);
 
+    // 1. ЛОГИ И СОСТОЯНИЕ (Твой дебаг-блок)
     if (isPointerLocked) {
-        // 1. ЛОГИ И СОСТОЯНИЕ (Твой код с фиксом скобки)
         if (Date.now() - (window.lastLog || 0) > 1000) {
             console.log(`[ДВИЖЕНИЕ]: W:${moveForward} S:${moveBackward} A:${moveLeft} D:${moveRight}`);
             console.log(`[КООРДИНАТЫ]: X:${camera.position.x.toFixed(2)} Z:${camera.position.z.toFixed(2)}`);
-            
-            // ПРОВЕРКА ДАННЫХ: если тут будет null/undefined - вот причина ступора!
             console.log(`[DEBUG]: MyID: ${myPlayerId} | Im Alive: ${players[myPlayerId] ? 'YES' : 'NO'}`);
-            
             window.lastLog = Date.now();
         } 
-    } // <-- Эту скобку ты пропустил!
+    }
 
     // 2. ЛОГИКА ТВОЕГО ДВИЖЕНИЯ
     if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
@@ -121,12 +118,7 @@ function animate() {
         }
     }
 
-    // Рендерим мир
-    if (renderer) renderer.render(scene, camera);
-}
-
-
-    // 2. ОБНОВЛЕНИЕ ПОЗИЦИЙ ДРУГИХ ИГРОКОВ (Твой оригинальный код)
+    // 3. ОБНОВЛЕНИЕ ПОЗИЦИЙ ДРУГИХ ИГРОКОВ
     for (const playerId in playerMeshes) {
         if (playerId !== myPlayerId && players[playerId]) {
             const targetPosition = new THREE.Vector3(
@@ -135,10 +127,8 @@ function animate() {
                 players[playerId].position.z
             );
             
-            // Плавное перемещение мешей других игроков (lerp)
             playerMeshes[playerId].position.lerp(targetPosition, 0.1);
 
-            // Плавный поворот мешей других игроков (slerp)
             if (players[playerId].rotation) {
                 const targetRotation = new THREE.Quaternion().setFromEuler(
                     new THREE.Euler(players[playerId].rotation.x, players[playerId].rotation.y, players[playerId].rotation.z)
@@ -148,8 +138,10 @@ function animate() {
         }
     }
 
-    // 3. Отрисовка сцены
-    renderer.render(scene, camera);
+    // 4. ФИНАЛЬНАЯ ОТРИСОВКА СЦЕНЫ (Один раз в самом конце!)
+    if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+    }
 }
 
 
