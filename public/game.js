@@ -119,63 +119,39 @@ function createMap() {
     }
 }
 
-
 function animate() {
     requestAnimationFrame(animate);
-	    if (mixer) {
-        const delta = clock.getDelta();
-        mixer.update(delta);
-    }
- // 1. ЛОГИ И СОСТОЯНИЕ (Твой дебаг-блок)
-    if (isPointerLocked) {
-        if (Date.now() - (window.lastLog || 0) > 1000) {
-            console.log(`[ДВИЖЕНИЕ]: W:${moveForward} S:${moveBackward} A:${moveLeft} D:${moveRight}`);
-            console.log(`[КООРДИНАТЫ]: X:${camera.position.x.toFixed(2)} Z:${camera.position.z.toFixed(2)}`);
-            console.log(`[DEBUG]: MyID: ${myPlayerId} | Im Alive: ${players[myPlayerId] ? 'YES' : 'NO'}`);
-            window.lastLog = Date.now();
-        } 
-    }
 
-    // 2. ЛОГИКА ТВОЕГО ДВИЖЕНИЯ
-    if (isPointerLocked && players[myPlayerId] && players[myPlayerId].health > 0) {
-        const speed = 0.15; 
+    // 1. ПРОВЕРКА: Двигаем камеру ВСЕГДА (даже без мыши), чтобы проверить рендер
+    // Если ты заспавнился и камера сама поехала вперед — значит рендер работает!
+    if (isPointerLocked) {
+        const speed = 2.0; // ТУРБО-СКОРОСТЬ для теста
         
         if (moveForward) camera.translateZ(-speed);
         if (moveBackward) camera.translateZ(speed);
         if (moveLeft) camera.translateX(-speed);
         if (moveRight) camera.translateX(speed);
         
-        camera.position.y = 1.6;
+        camera.position.y = 1.6; // Фикс высоты
 
-        if (typeof sendPlayerMove === 'function') {
-            sendPlayerMove();
+        if (typeof sendPlayerMove === 'function') sendPlayerMove();
+    }
+
+    // 2. ОБНОВЛЕНИЕ ДРУГИХ (твой код)
+    for (const id in playerMeshes) {
+        if (id !== myPlayerId && players[id]) {
+            playerMeshes[id].position.lerp(players[id].position, 0.1);
         }
     }
 
-    // 3. ОБНОВЛЕНИЕ ПОЗИЦИЙ ДРУГИХ ИГРОКОВ
-    for (const playerId in playerMeshes) {
-        if (playerId !== myPlayerId && players[playerId]) {
-            const targetPosition = new THREE.Vector3(
-                players[playerId].position.x, 
-                players[playerId].position.y,
-                players[playerId].position.z
-            );
-            
-            playerMeshes[playerId].position.lerp(targetPosition, 0.1);
-
-            if (players[playerId].rotation) {
-                const targetRotation = new THREE.Quaternion().setFromEuler(
-                    new THREE.Euler(players[playerId].rotation.x, players[playerId].rotation.y, players[playerId].rotation.z)
-                );
-                playerMeshes[playerId].quaternion.slerp(targetRotation, 0.1);
-            }
-        }
-    }
-    // 4. ФИНАЛЬНАЯ ОТРИСОВКА СЦЕНЫ (Один раз в самом конце!)
+    // 3. САМОЕ ВАЖНОЕ: Рендерим именно ТУ камеру, которую двигаем
     if (renderer && scene && camera) {
         renderer.render(scene, camera);
+    } else {
+        console.error("ОШИБКА: Рендерер, сцена или камера потеряны!");
     }
 }
+
 
 
 function handleKeyDown(event) {
