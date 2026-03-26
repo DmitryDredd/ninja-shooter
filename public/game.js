@@ -451,28 +451,45 @@ players[playerId].position.z);
 
 
 function loadWeaponModel() {
-    // 1. Создаем загрузчик
     const weaponLoader = new THREE.GLTFLoader();
     
-    // 2. Пытаемся загрузить твой будущий Калаш
+    // 1. Убедись, что на GitHub файл называется именно ak47.glb
     weaponLoader.load('ak47.glb', (gltf) => { 
         weaponModel = gltf.scene;
-        weaponModel.scale.set(0.1, 0.1, 0.1); // Размер
-        weaponModel.position.set(0.4, -0.5, -1.2); // Позиция в руках
-        camera.add(weaponModel);
-        console.log("🔥 КАЛАШ ИЗ КОНТРЫ ЗАГРУЖЕН!");
-    }, undefined, (error) => {
-        // --- ЭТО ЗАГЛУШКА (Если файла weapon.glb еще нет на GitHub) ---
-        console.warn("Модель weapon.glb не найдена. Создаю временный клинок!");
+
+        // КРИТИЧЕСКИЙ ФИКС: Увеличиваем масштаб. 
+        // Если модель из CS 1.6, ставь от 1.0 до 5.0, чтобы увидеть её
+        weaponModel.scale.set(1.5, 1.5, 1.5); 
+
+        // ПОЗИЦИЯ: X: 0.5 (справа), Y: -0.6 (чуть ниже центра), Z: -1.2 (перед собой)
+        weaponModel.position.set(0.5, -0.6, -1.2); 
         
-        // Создаем длинный неоновый зеленый куб (как меч)
-        const geo = new THREE.BoxGeometry(0.05, 0.1, 1.5);
+        // ПОВОРОТ: Если ствол смотрит в тебя, разверни его на 180 градусов
+        weaponModel.rotation.y = Math.PI; 
+
+        // Добавляем к камере, чтобы пушка двигалась за взглядом
+        camera.add(weaponModel);
+        
+        // ВАЖНО: Камера должна быть в сцене, чтобы видеть то, что к ней привязано
+        if (!scene.children.includes(camera)) {
+            scene.add(camera);
+        }
+
+        console.log("🎯 КАЛАШ ИЗ КОНТРЫ В РУКАХ!");
+    }, undefined, (error) => {
+        // --- ЗАГЛУШКА (Если файл не найден или ошибка в пути) ---
+        console.warn("Файл ak47.glb не найден. Создаю временный неоновый клинок!");
+        
+        const geo = new THREE.BoxGeometry(0.1, 0.1, 1.5);
         const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
         weaponModel = new THREE.Mesh(geo, mat);
         
-        // Ставим его "в руки" справа снизу
-        weaponModel.position.set(0.5, -0.5, -1.2);
+        weaponModel.position.set(0.5, -0.5, -1.0);
         camera.add(weaponModel);
+        
+        if (!scene.children.includes(camera)) {
+            scene.add(camera);
+        }
     });
 }
 
