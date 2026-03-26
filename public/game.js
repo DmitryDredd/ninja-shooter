@@ -531,7 +531,7 @@ function loadWeaponModel() {
     weaponLoader.load('ak47.glb', (gltf) => { 
         weaponModel = gltf.scene;
 
-        weaponModel.scale.set(50, 50, 50); // Смело ставь 45, если модель из CS 1.6
+        weaponModel.scale.set(20, 20, 20); // Смело ставь 45, если модель из CS 1.6
         weaponModel.position.set(0.6, -0.7, -1.2); // Позиция: справа, чуть ниже и ближе
 
         weaponModel.rotation.y = Math.PI; // Разворачиваем ствол от себя
