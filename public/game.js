@@ -301,20 +301,19 @@ const shootSound = new Audio('ak47-1.wav');
 let isShooting = false;
 let shootInterval;
 
-let shootTimer = null;
-
 document.addEventListener('mousedown', (e) => {
-    // 0 — это левая кнопка мыши
     if (e.button === 0 && isPointerLocked && players[myPlayerId]?.health > 0) {
-        handleShoot(); // Первый выстрел сразу
-        shootTimer = setInterval(handleShoot, 100); // Очередь каждые 0.1 сек
+        isShooting = true;
+        // Запускаем очередь: стреляем каждые 100мс (как в CS)
+        shootInterval = setInterval(handleShoot, 100); 
+        handleShoot(); // Первый выстрел мгновенно
     }
 });
 
 document.addEventListener('mouseup', () => {
-    clearInterval(shootTimer); // Остановить стрельбу
+    isShooting = false;
+    clearInterval(shootInterval);
 });
-
 
 function handleShoot() {
     // 1. Звук
