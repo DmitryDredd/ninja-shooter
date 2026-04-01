@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const http = require('http').Server(app);
-
+const path = require('path'); // Убедитесь, что эта строка есть в самом верху
 const io = require('socket.io')(http, {
     cors: {
         origin: '*',
@@ -9,10 +9,11 @@ const io = require('socket.io')(http, {
     },
 });
 
-app.use(express.static('../dist/'));
+app.use(express.static(path.join(__dirname, '../dist')));
 
-app.get('/', function (req, res) {
-    res.sendFile(__dirname + '../../dist/index.html');
+// Правильный маршрут для главной страницы
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 let players = {};
