@@ -524,79 +524,91 @@ class Game {
         this.createMannequin();
     }
 
-    initSocket() {
-        console.log('init socket');
-        this.socket = io('https://three-arena.fly.dev/');
+initSocket() {
+    console.log('init socket');
+    // Используем ваш текущий сервер
+    this.socket = io('https://three-arena.fly.dev/');
 
-        this.player = {};
-        this.players = {};
+    this.player = {};
+    this.players = {};
 
-        this.socket.on('connect', () => {
-            this.socket.on('initPlayer', (data, playerCount, playerIDs) => {
-                this.player.id = data.id;
-                console.log(
-                    `I am ${this.socket.id}, the ${playerCount}${
-                        playerCount <= 1
-                            ? 'st'
-                            : playerCount == 2
-                            ? 'nd'
-                            : playerCount == 3
-                            ? 'rd'
-                            : 'th'
-                    } player`
-                );
+    // 1. Инициализация при подключении
+    this.socket.on('initPlayer', (data, playerCount, playerIDs) => {
+        this.player.id = data.id;
+        console.log(`I am ${this.player.id}, total players: ${playerCount}`);
 
-                // Check all that isn't local player
-                for (let i = 0; i < playerCount; i++) {
-                    if (playerIDs[i] !== this.player.id) {
-                        console.log(
-                            `${playerIDs[i]} needs to be added to the world...`
-                        );
-                        this.initRemotePlayer(playerIDs[i]);
-                    }
-                }
-            });
-        });
-
-        this.socket.on('playerPositions', (players) => {
-            this.updateRemotePlayers(players);
-        });
-
-        this.socket.on('player connect', (playerId, playerCount) => {
-            console.log(`${playerId} joined the session!`);
-            console.log(`There are now ${playerCount} players`);
-            if (playerId !== this.player.id) {
-                console.log(`${playerId} needs to be added to the world...`);
-                this.initRemotePlayer(playerId);
+        // Добавляем всех существующих игроков, кроме себя
+        playerIDs.forEach(id => {
+            if (id !== this.player.id) {
+                console.log(`Adding existing player: ${id}`);
+                this.initRemotePlayer(id);
             }
-            this.addStatusMessage(playerId, 'join');
         });
+    });
 
-        this.socket.on('player disconnect', (playerId, playerCount) => {
-            this.deleteRemotePlayer(playerId);
-            console.log(`${playerId} has left us...`);
-            console.log(`There are now ${playerCount} players`);
-            this.addStatusMessage(playerId, 'leave');
-        });
+    // 2. Обновление позиций (самый частый эмит)
+    this.socket.on('playerPositions', (playersData) => {
+        this.updateRemotePlayers(playersData);
+    });
 
-        this.socket.on('connect', () => {
-            this.socket.on('chat message', (username, message) => {
-                this.addChatMessage(username, message);
-            });
-        });
+    // 3. Новый игрок зашел
+    this.socket.on('player connect', (playerId, playerCount) => {
+        if (playerId !== this.player.id) {
+            console.log(`${playerId} joined! Total: ${playerCount}`);
+            this.initRemotePlayer(playerId);
+        }
+        this.addStatusMessage(playerId, 'join');
+    });
 
-        this.socket.on('shootSyncRocket', (playerData, playerID) => {
+    // 4. ИГРОК УШЕЛ (Исправлено: принудительное удаление из 3D сцены)
+    this.socket.on('player disconnect', (playerId, playerCount) => {
+        console.log(`${playerId} has left us... Total: ${playerCount}`);
+        
+        // Находим объект игрока
+        const playerToDelete = this.players[playerId];
+        if (playerToDelete) {
+            // Удаляем визуальный кубик (mesh) из сцены Three.js
+            if (playerToDelete.mesh) {
+                this.scene.remove(playerToDelete.mesh);
+                // Если есть вспомогательные объекты (скелет, свет), удаляем и их
+                if (playerToDelete.skeletonHelper) this.scene.remove(playerToDelete.skeletonHelper);
+            }
+            
+            // Удаляем данные из памяти
+            delete this.players[playerId];
+        }
+
+        this.addStatusMessage(playerId, 'leave');
+    });
+
+    // 5. Чат (убрана лишняя вложенность в 'connect')
+    this.socket.on('chat message', (username, message) => {
+        this.addChatMessage(username, message);
+    });
+
+    // 6. Синхронизация стрельбы
+    this.socket.on('shootSyncRocket', (playerData, playerID) => {
+        // Проверка: не стреляем ли мы сами (защита от дублей)
+        if (playerID !== this.player.id) {
             this.shootRemoteRocket(playerData, playerID);
-        });
+        }
+    });
 
-        this.socket.on('kill message', (shooter, killed) => {
-            if (shooter) {
-                this.addKillMessage(shooter, killed);
-            } else {
-                this.addKillMessage(killed);
-            }
-        });
-    }
+    // 7. Сообщения об убийствах
+    this.socket.on('kill message', (shooter, killed) => {
+        if (shooter) {
+            this.addKillMessage(shooter, killed);
+        } else {
+            this.addKillMessage(killed);
+        }
+    });
+
+    // Обработка ошибок соединения
+    this.socket.on('connect_error', (err) => {
+        console.error('Socket connection error:', err.message);
+    });
+}
+
 
     initRemotePlayer(playerID) {
         const geometry = new THREE.BoxGeometry(1, 1, 1);
