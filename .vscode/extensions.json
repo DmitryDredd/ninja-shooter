@@ -1,1 +1,3 @@
-
+{
+    "recommendations": ["slevesque.shader", "esbenp.prettier-vscode"]
+}
