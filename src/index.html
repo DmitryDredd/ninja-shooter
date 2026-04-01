@@ -1,1 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Three.js arena</title>
+        <link rel="preconnect" href="https://fonts.gstatic.com" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+            rel="stylesheet"
+        />
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet"> 
+        <script defer data-domain="three-arena.vercel.app" src="https://plausible.io/js/plausible.js"></script>
+    </head>
+    <body>
+        <!-- Movement HUD stats -->
+        <div class="custom-stats">
+            <h4>Velocity:</h4>
+            <p class="velocity-stats">Initial</p>
+            <h4>Position:</h4>
+            <p class="position-stats">Initial</p>
+        </div>
 
+        <!-- Pause render loop button (currently hidden) -->
+        <div class="pause-button-wrapper">
+            <a class="pause-button">Toggle</a>
+        </div>
+
+        <!-- Respawn game button -->
+        <div class="respawn-button-wrapper">
+            <div class="button-background"></div>
+            <p class="respawn-text">You died</p>
+            <button class="button">Respawn</button>
+        </div>
+
+        <!-- Start game button -->
+        <div class="start-button-wrapper">
+            <div class="button-background"></div>
+            <button class="button">CONNECT</button>
+        </div>
+
+        <!-- Chat system -->
+        <section id="chatSection" class="chatContainer hidden">
+            <div>
+                <ul class="chatList"></ul>
+            </div>
+        </section>
+
+
+        <!-- Chat input -->
+        <div id="inputForm">
+            <form action="">
+                <input
+                class="chatList"
+                    id="inputText"
+                    placeholder="Type message.."
+                    required
+                ></input>
+            </form>
+        </div>
+    </body>
+</html>
