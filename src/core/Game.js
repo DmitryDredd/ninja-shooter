@@ -936,14 +936,14 @@ initRockets() {
 
     this.scene.add(this.frontRocketLight, this.backRocketLight);
 
-    // Для тестов на телефоне лучше отключить тени у ракет (сильно тормозят)
+    // Отключаем тени для мобилок, чтобы не лагало
     this.frontRocketLight.castShadow = false;
     this.backRocketLight.castShadow = false;
 
     for (let i = 0; i < this.maxRockets; i++) {
         const coolRocket = new THREE.Mesh(rocketGeometry, rocketMaterial);
         
-        // Клонируем взрыв только если он существует
+        // Безопасный клон взрыва
         if (this.rocketExplosion) {
             const coolExplosion = this.rocketExplosion.clone();
             coolExplosion.position.set(0, 0, 0);
@@ -956,14 +956,8 @@ initRockets() {
         coolRocket.receiveShadow = true;
         coolRocket.userData.isExploded = false;
 
-        // ЗВУК ПОКА ПОЛНОСТЬЮ ОТКЛЮЧЕН ДЛЯ ПРОВЕРКИ FPS
-        /*
-        const audioFly = this.createAudioInstance(this.audioMap.get('rocketFly'));
-        const audioExplode = this.createAudioInstance(this.audioMap.get('rocketExplode'));
-        if (audioFly) coolRocket.add(audioFly);
-        if (audioExplode) coolRocket.add(audioExplode);
-        */
-
+        // ЗДЕСЬ БЫЛА ОШИБКА: теперь тут пусто, никаких лишних скобок
+        
         this.scene.add(coolRocket);
 
         this.rockets.push({
@@ -973,8 +967,9 @@ initRockets() {
             timer: new THREE.Clock(),
         });
     }
-    console.log('init rockets completed');
+    console.log('init rockets completed without audio issues');
 }
+
 
 
     initStats() {
