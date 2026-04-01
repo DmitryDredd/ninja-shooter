@@ -1,12 +1,37 @@
 {
-  "name": "ninja-shooter",
-  "version": "1.0.0",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.6.1"
-  }
+    "name": "level-up",
+    "version": "1.0.0",
+    "description": "",
+    "private": true,
+    "scripts": {
+        "build": "webpack --config ./bundler/webpack.prod.js",
+        "dev": "webpack serve --config ./bundler/webpack.dev.js",
+        "start": "npm run dev",
+        "server": "npm start --prefix server"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.13.16",
+        "@babel/preset-env": "^7.13.15",
+        "babel-loader": "^8.2.2",
+        "clean-webpack-plugin": "*",
+        "copy-webpack-plugin": "^8.1.1",
+        "css-loader": "^5.2.4",
+        "file-loader": "^6.2.0",
+        "html-loader": "^2.1.2",
+        "html-webpack-plugin": "^5.3.1",
+        "mini-css-extract-plugin": "^1.5.1",
+        "portfinder-sync": "^0.0.2",
+        "prettier": "^2.2.1",
+        "raw-loader": "^4.0.2",
+        "style-loader": "^2.0.0",
+        "webpack": "^5.36.1",
+        "webpack-cli": "^4.6.0",
+        "webpack-dev-server": "^3.11.2",
+        "webpack-merge": "^5.7.3"
+    },
+    "dependencies": {
+        "dat.gui": "^0.7.7",
+        "socket.io-client": "^4.1.1",
+        "three": "^0.128.0"
+    }
 }
