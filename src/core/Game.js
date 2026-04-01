@@ -10,6 +10,8 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { Sprite, SpriteMaterial, OrthographicCamera, Scene } from 'three';
 import explosionFragment from '../shader/Explosion.frag';
 import explosionVertex from '../shader/Explosion.vert';
+// Импортируем загрузчик для твоих FBX моделей
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
 
 class Game {
     constructor() {
@@ -116,23 +118,50 @@ class Game {
     }
 
     // Main update game function
-    tick() {
-        const delta = this.clock.getDelta();
-        this.elaspedTime += delta;
+tick() {
+    const delta = this.clock.getDelta();
+    this.elaspedTime += delta;
 
-        this.updatePlayerControl(delta);
-        this.updateCheckOnGround(delta);
-        this.updatePlayerMovement(delta);
-        this.updateRockets(delta);
-        this.updateChatList();
-        this.updateStats();
-        this.updateCloneCube();
+    // 1. Обновляем логику игры
+    this.updatePlayerControl(delta);
+    this.updateCheckOnGround(delta);
+    this.updatePlayerMovement(delta);
+    this.updateRockets(delta);
+    this.updateChatList();
+    this.updateStats();
+    this.updateCloneCube();
 
-        this.stats.update();
-        this.renderer.render(this.scene, this.camera);
-        this.renderer.autoClear = false;
+    // --- ФИКС ГРАНИЦ ДЛЯ ПРЫЖКОВ (СИЛОВОЕ ПОЛЕ) ---
+    // Если метод был создан в initMap, вызываем его здесь
+    if (this.enforceBoundaries) {
+        this.enforceBoundaries();
+    }
+
+    // 2. ЗАЩИТНЫЙ ХАК ДЛЯ АУДИО (Убирает non-finite ошибки)
+    if (this.listener && this.listener.context && this.listener.context.state === 'running') {
+        const now = this.listener.context.currentTime;
+        if (isFinite(now)) {
+            this.listener.gain.gain.cancelScheduledValues(now);
+            this.listener.gain.gain.setValueAtTime(this.listener.gain.gain.value || 0, now);
+        }
+    }
+
+    // 3. ОБНОВЛЕНИЕ СТАТИСТИКИ
+    this.stats.update();
+
+    // 4. ПРАВИЛЬНЫЙ РЕНДЕРИНГ (Чтобы появилось перекрестие)
+    this.renderer.autoClear = true; 
+    this.renderer.render(this.scene, this.camera); 
+
+    this.renderer.autoClear = false; 
+    this.renderer.clearDepth(); 
+    
+    if (this.hudScene && this.hudCamera) {
         this.renderer.render(this.hudScene, this.hudCamera);
     }
+}
+
+
 
     createCloneCube() {
         const geometry = new THREE.BoxGeometry();
@@ -276,97 +305,113 @@ class Game {
         console.log('init skybox');
     }
 
-    initMap() {
-        const ambientLight = new THREE.AmbientLight(0xddbf96, 0.6); // Soft white light
-        const dirLight = new THREE.DirectionalLight(0xfcd6a4, 1);
+initMap() {
+    const ambientLight = new THREE.AmbientLight(0xddbf96, 0.6);
+    const dirLight = new THREE.DirectionalLight(0xfcd6a4, 1);
 
-        dirLight.position.set(-25, 250, 120);
-        dirLight.castShadow = true;
-        dirLight.shadow.camera.near = 1;
-        dirLight.shadow.camera.far = 2000;
-        dirLight.shadow.camera.right = 250;
-        dirLight.shadow.camera.left = -250;
-        dirLight.shadow.camera.top = 250;
-        dirLight.shadow.camera.bottom = -250;
-        dirLight.shadow.mapSize.width = 4064;
-        dirLight.shadow.mapSize.height = 4064;
-        dirLight.shadow.radius = 0.6;
+    dirLight.position.set(-25, 250, 120);
+    dirLight.castShadow = true;
+    dirLight.shadow.camera.near = 1;
+    dirLight.shadow.camera.far = 2000;
+    dirLight.shadow.mapSize.set(4064, 4064);
 
-        this.scene.add(ambientLight);
-        this.scene.add(dirLight);
+    this.scene.add(ambientLight);
+    this.scene.add(dirLight);
 
-        const gltfLoader = new GLTFLoader().setPath('models/');
-        const dracoLoader = new DRACOLoader();
-        dracoLoader.setDecoderPath('draco/');
-        gltfLoader.setDRACOLoader(dracoLoader);
-        gltfLoader.load('scene.glb', (gltf) => {
-            gltf.scene.traverse((model) => {
-                model.receiveShadow = true;
-                model.castShadow = true;
-            });
-            gltf.scene.receiveShadow = true;
-            gltf.scene.castShadow = true;
-            this.world.add(gltf.scene);
-            this.worldOctree.fromGraphNode(gltf.scene);
+    const gltfLoader = new GLTFLoader().setPath('models/');
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('draco/');
+    gltfLoader.setDRACOLoader(dracoLoader);
+	this.gltfLoader = gltfLoader; // Сохраняем ссылку, чтобы она была доступна в других методах
+    this.fbxLoader = new FBXLoader().setPath('models/'); 
+
+// --- ИДЕАЛЬНЫЕ ГРАНИЦЫ (СТЫК В СТЫК) ---
+const wallH = 60; 
+const minE = -115;  
+const maxE = 125;   
+const sizeX = 240; // Ширина
+const sizeZ = 240; // Длина
+const thick = 2;   // Толщина для стабильности физики
+
+const wallMat = new THREE.MeshPhongMaterial({ 
+    color: 0xff0000, 
+    transparent: true, 
+    opacity: 0.2, 
+    visible: true 
+});
+
+// Стены по оси X (Перед/Зад) - делаем их чуть шире на толщину боковых стен
+const wallGeoX = new THREE.BoxGeometry(sizeX + thick, wallH, thick);
+// Стены по оси Z (Лево/Право)
+const wallGeoZ = new THREE.BoxGeometry(thick, wallH, sizeZ - thick);
+
+const wallFront = new THREE.Mesh(wallGeoX, wallMat);
+wallFront.position.set(5, 0, maxE); 
+
+const wallBack = new THREE.Mesh(wallGeoX, wallMat);
+wallBack.position.set(5, 0, minE);
+
+const wallRight = new THREE.Mesh(wallGeoZ, wallMat);
+wallRight.position.set(maxE, 0, 5); 
+
+const wallLeft = new THREE.Mesh(wallGeoZ, wallMat);
+wallLeft.position.set(minE, 0, 5);
+
+this.world.add(wallFront, wallBack, wallRight, wallLeft);
+this.worldOctree.fromGraphNode(this.world);
+
+// --- ФИКС ПРОЛЕТА БОКОМ (СИЛОВОЕ ПОЛЕ) ---
+this.enforceBoundaries = () => {
+    const pos = this.playerCapsule.end;
+    const padding = 0.5; // Отступ от стены для плавности
+    
+    if (pos.z > maxE - padding) this.playerCapsule.translate(new THREE.Vector3(0, 0, (maxE - padding) - pos.z));
+    if (pos.z < minE + padding) this.playerCapsule.translate(new THREE.Vector3(0, 0, (minE + padding) - pos.z));
+    if (pos.x > maxE - padding) this.playerCapsule.translate(new THREE.Vector3((maxE - padding) - pos.x, 0, 0));
+    if (pos.x < minE + padding) this.playerCapsule.translate(new THREE.Vector3((minE + padding) - pos.x, 0, 0));
+};
+
+
+    // --- 3. ЗАГРУЗКА КАРТЫ ---
+    gltfLoader.load('scene.glb', (gltf) => {
+        gltf.scene.traverse((model) => {
+            model.receiveShadow = true;
+            model.castShadow = true;
         });
-        gltfLoader.load('tree.gltf', (gltf) => {
-            gltf.scene.traverse((model) => {
-                model.castShadow = true;
-            });
-            gltf.scene.scale.set(35, 35, 35);
-            gltf.scene.position.set(-3, -10, -3);
-            this.world.add(gltf.scene);
+        this.world.add(gltf.scene);
+
+        gltfLoader.load('tree.gltf', (treeGltf) => {
+            treeGltf.scene.scale.set(35, 35, 35);
+            treeGltf.scene.position.set(-3, -10, -3);
+            this.world.add(treeGltf.scene);
+
+            // Финальный расчет физики для ВСЕГО мира сразу
+            this.worldOctree.fromGraphNode(this.world);
+            console.log('init map: Физика и границы готовы');
         });
+    });
 
-        // TEST Objects
-        const geometry = new THREE.IcosahedronGeometry(1);
-        const bgGeometry = new THREE.PlaneBufferGeometry(1500, 1500, 128, 128);
+    // --- 4. ДЕКОРАЦИИ И ФОН ---
+    const bgGeometry = new THREE.PlaneBufferGeometry(1500, 1500, 128, 128);
+    const bgfull = new THREE.Mesh(bgGeometry, new THREE.MeshBasicMaterial({ color: 0x111111 }));
+    bgfull.position.set(0, -210, 0);
+    bgfull.rotation.x = -Math.PI / 2;
+    this.scene.add(bgfull);
 
-        const textureRock = new THREE.TextureLoader().load(
-            'models/rocktexture.jpg'
-        );
-        textureRock.wrapS = THREE.RepeatWrapping;
-        textureRock.wrapT = THREE.RepeatWrapping;
-        textureRock.repeat.set(1, 1);
+    // Добавляем тестовую сферу
+    const sphere = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(1), 
+        new THREE.MeshPhongMaterial({ color: 0x109000 })
+    );
+    sphere.castShadow = true;
+    sphere.position.set(0, 75, 0);
+    sphere.scale.set(2, 2, 2);
+    this.world.add(sphere);
 
-        const displacementMap = new THREE.TextureLoader().load(
-            'models/paintbg.png'
-        );
-        displacementMap.wrapS = THREE.RepeatWrapping;
-        displacementMap.wrapT = THREE.RepeatWrapping;
-        displacementMap.repeat.set(1, 1);
-        const textMat = new THREE.MeshPhongMaterial({
-            color: '#030303',
-            map: textureRock,
-            shininess: 0,
-            displacementMap: displacementMap,
-            displacementScale: 500,
-            displacementBias: -0.428408,
-        });
+    this.scene.add(this.world);
+}
 
-        const bgMaterial = new THREE.MeshBasicMaterial();
-        bgMaterial.color = new THREE.Color(0xff111111);
-        const material = new THREE.MeshPhongMaterial();
-        material.color = new THREE.Color(0xff109000);
 
-        const sphere = new THREE.Mesh(geometry, material);
-        const bgfull = new THREE.Mesh(bgGeometry, textMat);
-
-        bgfull.position.set(0, -210, 0);
-        bgfull.rotation.x = -89.5;
-        bgfull.rotation.z = 89.5;
-
-        sphere.castShadow = true;
-        sphere.position.set(0, 75, 0);
-        sphere.scale.set(2, 2, 2);
-
-        this.scene.add(bgfull);
-        this.world.add(sphere);
-        this.scene.add(this.world);
-        this.worldOctree.fromGraphNode(this.world);
-
-        console.log('init map');
-    }
 
     initPlayer() {
         this.playerVelocity = new THREE.Vector3();
@@ -520,7 +565,6 @@ class Game {
     }
 
     initDevWIP() {
-        this.createCloneCube();
         this.createMannequin();
     }
 
@@ -579,11 +623,7 @@ class Game {
             this.addStatusMessage(playerId, 'leave');
         });
 
-        this.socket.on('connect', () => {
-            this.socket.on('chat message', (username, message) => {
-                this.addChatMessage(username, message);
-            });
-        });
+
 
         this.socket.on('shootSyncRocket', (playerData, playerID) => {
             this.shootRemoteRocket(playerData, playerID);
@@ -596,26 +636,88 @@ class Game {
                 this.addKillMessage(killed);
             }
         });
+		this.socket.on('chat message', (username, message) => {
+        this.addChatMessage(username, message);
+        });
     }
 
-    initRemotePlayer(playerID) {
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshNormalMaterial();
-        material.color = new THREE.Color(0x000000);
+initRemotePlayer(playerID) {
+    console.log(`%c[NETWORK] Инициализация нового ниндзя: ${playerID}`, 'color: yellow');
 
-        const remotePlayer = new THREE.Mesh(geometry, material);
-        remotePlayer.position.set(0, 0, 0);
+    // 1. Создаем группу-контейнер для игрока (чтобы модель и куб были в одной точке)
+    const playerGroup = new THREE.Group();
+    playerGroup.position.set(0, 0, 0);
 
-        this.scene.add(remotePlayer);
+    // 2. Создаем твой временный куб (заглушка), пока грузится тяжелая модель
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshNormalMaterial();
+    // material.color = new THREE.Color(0x000000); // MeshNormalMaterial игнорирует цвет, но оставим для структуры
+    
+    const tempMesh = new THREE.Mesh(geometry, material);
+    tempMesh.name = "tempCube";
+    playerGroup.add(tempMesh);
 
-        this.players[playerID] = {};
-        this.players[playerID].mesh = remotePlayer;
-        this.players[playerID].positionSync = new THREE.Vector3();
-        this.players[playerID].lookDirection = new THREE.Vector3();
+    // 3. Добавляем в сцену
+    this.scene.add(playerGroup);
 
-        console.log(`${playerID} added to the scene!`);
-        console.log(this.players);
+    // 4. Регистрируем в твоем списке игроков (сохраняем структуру объектов)
+    this.players[playerID] = {};
+    this.players[playerID].mesh = playerGroup; // Теперь мешем будет вся группа
+    this.players[playerID].positionSync = new THREE.Vector3();
+    this.players[playerID].lookDirection = new THREE.Vector3();
+
+    console.log(`${playerID} added to the scene!`);
+    
+    // --- ФУНКЦИЯ ЗАМЕНЫ КУБА НА МОДЕЛЬ ---
+const applyModel = (model, type) => {
+    const cube = playerGroup.getObjectByName("tempCube");
+    if (cube) playerGroup.remove(cube);
+
+    // 1. ВЫПРЯМЛЯЕМ СПИНУ (Ровно 90 градусов)
+    model.rotation.x = 1.66; 
+    model.rotation.y = Math.PI; 
+
+    // 2. МАСШТАБ (Оставляем твой 1.5)
+    const s = 1.7; 
+    model.scale.set(s, s, s); 
+
+    // 3. ПОЗИЦИЯ (Оставляем твой -2.2)
+    model.position.set(0, -2.5, 0); 
+
+    playerGroup.add(model);
+};
+
+
+
+
+    // --- КАСКАДНАЯ ЗАГРУЗКА (FBX -> GLTF -> FAIL) ---
+    if (this.fbxLoader) {
+        console.log(`[LOAD] Пробуем загрузить FBX для ${playerID}...`);
+        
+        this.fbxLoader.load('Superhero_Male_FullBody.fbx', 
+            (fbx) => applyModel(fbx, 'FBX'),
+            undefined, // Можно добавить прогресс-бар здесь
+            (err) => {
+                console.warn(`%c[ERROR] FBX не найден для ${playerID}. Пробуем GLTF...`, 'color: orange');
+                
+                // Вторая попытка: пробуем GLTF
+                if (this.gltfLoader) {
+                    this.gltfLoader.load('superhero.glb', 
+                        (gltf) => applyModel(gltf.scene, 'GLTF'),
+                        undefined,
+                        () => {
+                            console.error(`%c[FATAL] Ни FBX, ни GLTF не загрузились для ${playerID}`, 'color: red');
+                            // Оставляем куб, ничего не делаем
+                        }
+                    );
+                }
+            }
+        );
+    } else {
+        console.error("[CRITICAL] fbxLoader не найден в классе Game! Проверь метод initMap.");
     }
+}
+
 
     deleteRemotePlayer(playerID) {
         this.scene.remove(this.players[playerID].mesh);
@@ -623,7 +725,7 @@ class Game {
         console.log(this.players);
     }
 
-    updateRemotePlayers(remotePlayers) {
+updateRemotePlayers(remotePlayers) {
         for (let id in remotePlayers) {
             if (id != this.player.id) {
                 // Should not forget to reuse vectors
@@ -649,6 +751,7 @@ class Game {
             }
         }
     }
+
 
     uploadMovementData() {
         this.socket.emit(
@@ -1274,15 +1377,18 @@ class Game {
     // In development functions
 
     createCloneCube() {
-        const geometry = new THREE.BoxGeometry();
-        const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-        this.cube = new THREE.Mesh(geometry, material);
-        this.scene.add(this.cube);
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+    this.cube = new THREE.Mesh(geometry, material);
+    
+    this.cube.visible = false; // <--- ДОБАВЬ ЭТО: куб станет невидимым
+    
+    this.scene.add(this.cube);
     }
 
     updateCloneCube() {
-        const position = this.playerCapsule.end;
-        this.cube.position.set(position.x + 2, position.y + 2, position.z + 2);
+       // const position = this.playerCapsule.end;
+       // this.cube.position.set(position.x + 2, position.y + 2, position.z + 2);
     }
 
     createMannequin() {
