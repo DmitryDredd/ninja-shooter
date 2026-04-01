@@ -727,8 +727,13 @@ class Game {
 
         document.addEventListener('click', () => {
             if (canShoot) {
-                // Currently bug causes rocket to misalign after reaching maxRocket count, AKA when rocketIdx is reset.
-                const rocket = this.rockets[this.rocketIdx];
+    const rocket = this.rockets[this.rocketIdx];
+
+    // ПРОВЕРКА: Если ракета не найдена, выходим из функции, чтобы не вешать игру
+    if (!rocket || !rocket.mesh) {
+        console.warn('Rocket not ready yet!');
+        return; 
+    }
 
                 // Align rocket to look direction
                 rocket.mesh.lookAt(this.lookVector().negate());
