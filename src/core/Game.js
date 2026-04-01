@@ -482,14 +482,14 @@ class Game {
             coolRocket.receiveShadow = true;
             coolRocket.userData.isExploded = false;
 
-            const audioFly = this.createAudioInstance(
+           // const audioFly = this.createAudioInstance(
                 this.audioMap.get('rocketFly')
             );
-            const audioExplode = this.createAudioInstance(
+            //const audioExplode = this.createAudioInstance(
                 this.audioMap.get('rocketExplode')
             );
-            coolRocket.add(audioFly);
-            coolRocket.add(audioExplode);
+            //coolRocket.add(audioFly);
+            //coolRocket.add(audioExplode);
 
             coolExplosion.position.set(0, 0, 0);
             coolExplosion.visible = false;
@@ -1222,12 +1222,23 @@ class Game {
         }
     }
 
-    createAudioInstance(source) {
-        const audio = new source.constructor(source.listener);
-        audio.buffer = source.buffer;
+createAudioInstance(source) {
+    if (!source) return null; // Защита, если звук еще не загружен
 
-        return audio;
+    const audio = new source.constructor(source.listener);
+    audio.setBuffer(source.buffer);
+    
+    // ВАЖНО: Настрой дистанцию, чтобы не было ошибки при расчете громкости
+    if (audio.setRefDistance) {
+        audio.setRefDistance(1); 
+        audio.setMaxDistance(50);
+        audio.setRolloffFactor(1);
     }
+    
+    audio.setVolume(0); // По умолчанию звук выключен
+    return audio;
+}
+
 
     hudSetSize(width, height) {
         this.hudCamera.left = -width / 2;
